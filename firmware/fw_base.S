@@ -51,7 +51,7 @@ _start:
 	 * that is, for mhartid != 0
 	 */
 	csrr	a6, CSR_MHARTID
-	blt	zero, a6, _wait_relocate_copy_done
+	blt	zero, a6, _multi_hart
 
 	/* Save load address */
 	la	t0, _load_start
@@ -105,6 +105,12 @@ _relocate_copy_to_upper_loop:
 	REG_S	t2, 0(t1)
 	blt	t0, t1, _relocate_copy_to_upper_loop
 	jr	t4
+_multi_hart:
+	csrw    CSR_MIE, MIP_MSIP
+	wfi
+	csrr	ra, CSR_MIP
+	andi	ra, ra, MIP_MSIP
+	beqz	ra, _multi_hart
 _wait_relocate_copy_done:
 	la	t0, _start
 	la	t1, _link_start

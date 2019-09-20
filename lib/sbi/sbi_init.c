@@ -151,6 +151,44 @@ static void __noreturn init_warmboot(struct sbi_scratch *scratch, u32 hartid)
 				     scratch->next_mode, FALSE);
 }
 
+/**
+ * Hawksbill has a hardware issue that it doesn't hold hart 1 to 12 when
+ * system reset and power on.
+ *
+ * We make hart 1 to 12 wait for interrupt at fw_base.S, it prevents these
+ * harts wander around when reset or power on.
+ * After hart 0 loading image, hart 0 would go to _start, and be responsible
+ * for waking up other harts. Here is a workaround that initialize platform ipi
+ * earlier for sending ipi.
+ *
+ * We cannot make hart 1 to 12 be stalled by original way. (i.e at
+ * sbi_hart_wait_for_coldboot that called by init_warmboot). In hawksbill case
+ * hart 1 to 12 would go warm_boot, and no one can wake up them. Even if hart 0
+ * wake them at the moment, all registers status had been corrupted by hardware
+ * initialization. So we stall hart 1 to 12 as earlier as possible.
+ *
+ * Notice: Power on case is still unresolved. At that moment, memory is empty,
+ * hart 1 to 12 are going to anywhere unexpectedly
+ */
+static void __noreturn hawksbill_hart0_boot(struct sbi_scratch *scratch)
+{
+	const struct sbi_platform *plat = sbi_platform_ptr(scratch);
+	int max_hart = sbi_platform_hart_count(plat);
+	int rc;
+
+	rc = sbi_platform_ipi_init(plat, TRUE);
+	if (rc)
+		sbi_hart_hang();
+
+	for (int i = 1; i < max_hart; i++) {
+		if (!sbi_platform_hart_disabled(plat, i)) {
+			sbi_platform_ipi_send(plat, i);
+		}
+	}
+
+	sbi_hart_hang();
+}
+
 static atomic_t coldboot_lottery = ATOMIC_INITIALIZER(0);
 
 /**
@@ -171,11 +209,21 @@ void __noreturn sbi_init(struct sbi_scratch *scratch)
 	u32 hartid			= sbi_current_hartid();
 	const struct sbi_platform *plat = sbi_platform_ptr(scratch);
 
+	if (hartid == 0) {
+		hawksbill_hart0_boot(scratch);
+	}
+
 	if (sbi_platform_hart_disabled(plat, hartid))
 		sbi_hart_hang();
 
 	if (atomic_add_return(&coldboot_lottery, 1) == 1)
 		coldboot = TRUE;
+
+	/* On hawksbill issue fixing (see line 154), hart 1 to 12 would be waked
+	 * and enter here. They need to clear MSIP, otherwise, the wfi in
+	 * warm_boot (at sbi_hart_wait_for_coldboot) has no effect.
+	 **/
+	sbi_platform_ipi_clear(plat, hartid);
 
 	if (coldboot)
 		init_coldboot(scratch, hartid);
