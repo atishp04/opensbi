@@ -8,6 +8,7 @@
 
 	aliases {
 		serial0 = &uart0;
+		serial1 = &uart1;
 	};
 
 	chosen {
@@ -412,6 +413,24 @@
 			compatible = "sifive,fu540-c000-spi", "sifive,spi0";
 			reg = <0x0 0x10050000 0x0 0x1000>;
 			interrupt-parent = <&plic0>;
+			interrupts = <0xe>;
+			clocks = <&tlclk0>;
+			#address-cells = <0x1>;
+			#size-cells = <0x0>;
+
+			mmc@0 {
+				compatible = "mmc-spi-slot";
+				reg = <0x0>;
+				spi-max-frequency = <5000000>;
+				voltage-ranges = <0xce4 0xce4>;
+				disable-wp;
+			};
+		};
+
+		spi@210050000 {
+			compatible = "sifive,fu540-c000-spi", "sifive,spi0";
+			reg = <0x2 0x10050000 0x0 0x1000>;
+			interrupt-parent = <&plic1>;
 			interrupts = <0xe>;
 			clocks = <&tlclk0>;
 			#address-cells = <0x1>;
