@@ -78,21 +78,25 @@ static inline u32 vcu118_clint_time_read_hi(u32 idx)
 	return readl_relaxed((u32 *)clint_time_val[idx] + 1);
 }
 
-u64 vcu118_clint_timer_value(void)
+static u64 vcu118_clint_timer_value_by_idx(u32 idx)
 {
-	u32 node_idx = hawksbill_get_node_idx_by_target(sbi_current_hartid());
 #if __riscv_xlen == 64
-	return readq_relaxed(clint_time_val[node_idx]);
+	return readq_relaxed(clint_time_val[idx]);
 #else
 	u32 lo, hi;
 
 	do {
-		hi = vcu118_clint_time_read_hi(node_idx);
-		lo = readl_relaxed(clint_time_val[node_idx]);
-	} while (hi != vcu118_clint_time_read_hi(node_idx));
+		hi = vcu118_clint_time_read_hi(idx);
+		lo = readl_relaxed(clint_time_val[idx]);
+	} while (hi != vcu118_clint_time_read_hi(idx));
 
 	return ((u64)hi << 32) | (u64)lo;
 #endif
+}
+
+u64 vcu118_clint_timer_value(void)
+{
+	return vcu118_clint_timer_value_by_idx(0);
 }
 
 void vcu118_clint_timer_event_stop(void)
@@ -119,11 +123,34 @@ void vcu118_clint_timer_event_start(u64 next_event)
 	u32 target_hart = sbi_current_hartid();
 	u32 node_idx   = hawksbill_get_node_idx_by_target(sbi_current_hartid());
 	u32 target_idx = hawksbill_get_node_target_idx(target_hart);
+	u64 mtime_master, mtime_own, mtime_diff;
 
 	if (clint_time_hart_count <= target_idx)
 		return;
 
-		/* Program CLINT Time Compare */
+	/*
+	 * Correct the next_event if it isn't in master cluster.
+	 *
+	 * All clusters use mtime of clint0 as their timer, becasue we cannot
+	 * synchronize mtime of each cluster by hardware. But timer interrupt
+	 * are still triggered by comparing mtimecmp and mtime of clint which
+	 * on the own cluster. It causes the timer interrupt become imprecise.
+	 *
+	 * The next_event is always a positive number.
+	 */
+	if (node_idx != 0) {
+		mtime_master = vcu118_clint_timer_value_by_idx(0);
+		mtime_own = vcu118_clint_timer_value_by_idx(node_idx);
+		if (mtime_master > mtime_own) {
+			mtime_diff = mtime_master - mtime_own;
+			next_event -= mtime_diff;
+		} else {
+			mtime_diff = mtime_own - mtime_master;
+			next_event += mtime_diff;
+		}
+	}
+
+	/* Program CLINT Time Compare */
 #if __riscv_xlen == 64
 	writeq_relaxed(next_event, &clint_time_cmp[node_idx][target_idx]);
 #else
@@ -164,7 +191,7 @@ int vcu118_clint_cold_timer_init(unsigned long base, u32 hart_count)
 	clint_time_val[0]     = (u64 *)(clint_time_base[0] + 0xbff8);
 	clint_time_cmp[0]     = (u64 *)(clint_time_base[0] + 0x4000);
 	clint_time_base[1]    = (void *)(base + HAWKSBILL_NODE2_BASE);
-	clint_time_val[1]     = (u64 *)(clint_time_base[0] + 0xbff8);
+	clint_time_val[1]     = (u64 *)(clint_time_base[1] + 0xbff8);
 	clint_time_cmp[1]     = (u64 *)(clint_time_base[1] + 0x4000);
 
 	return 0;
