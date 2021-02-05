@@ -259,6 +259,9 @@ static inline char *sbi_hart_feature_id2string(unsigned long feature)
 	case SBI_HART_HAS_MCOUNTEREN:
 		fstr = "mcounteren";
 		break;
+	case SBI_HART_HAS_MCOUNTINHIBIT:
+		fstr = "mcountinhibit";
+		break;
 	case SBI_HART_HAS_TIME:
 		fstr = "time";
 		break;
@@ -421,6 +424,15 @@ __mhpm_skip:
 		csr_write_allowed(CSR_MCOUNTEREN, (unsigned long)&trap, val);
 		if (!trap.cause)
 			hfeatures->features |= SBI_HART_HAS_MCOUNTEREN;
+	}
+
+	/* Detect if hart supports MCOUNTINHIBIT feature */
+	trap.cause = 0;
+	val = csr_read_allowed(CSR_MCOUNTINHIBIT, (unsigned long)&trap);
+	if (!trap.cause) {
+		csr_write_allowed(CSR_MCOUNTINHIBIT, (unsigned long)&trap, val);
+		if (!trap.cause)
+			hfeatures->features |= SBI_HART_HAS_MCOUNTINHIBIT;
 	}
 
 	/* Detect if hart supports time CSR */
