@@ -11,6 +11,8 @@
 #include <sbi/sbi_ecall.h>
 #include <sbi/sbi_ecall_interface.h>
 #include <sbi/sbi_error.h>
+#include <sbi/sbi_hart.h>
+#include <sbi/sbi_scratch.h>
 #include <sbi/sbi_trap.h>
 
 u16 sbi_ecall_version_major(void)
@@ -144,6 +146,7 @@ int sbi_ecall_handler(struct sbi_trap_regs *regs)
 int sbi_ecall_init(void)
 {
 	int ret;
+	struct sbi_scratch *scratch = sbi_scratch_thishart_ptr();
 
 	/* The order of below registrations is performance optimized */
 	ret = sbi_ecall_register_extension(&ecall_time);
@@ -164,6 +167,12 @@ int sbi_ecall_init(void)
 	ret = sbi_ecall_register_extension(&ecall_srst);
 	if (ret)
 		return ret;
+	/* SBI PMU extension is useless without mcount inhibit features */
+	if (sbi_hart_has_feature(scratch, SBI_HART_HAS_MCOUNTINHIBIT)) {
+		ret = sbi_ecall_register_extension(&ecall_pmu);
+		if (ret)
+			return ret;
+	}
 	ret = sbi_ecall_register_extension(&ecall_legacy);
 	if (ret)
 		return ret;
