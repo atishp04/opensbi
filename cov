@@ -1,0 +1,25 @@
+The latest version of the SBI specification includes a Performance Monitoring
+Unit(PMU) extension[1] which allows the supervisor to start/stop/configure
+various PMU events. This series implements the SBI PMU extension in OpenSBI.
+
+It doesn't implement the bits required to support "Sscof" extension yet. That
+will be added later along with qemu support. This series can be found at github[4]
+as well. It has been tested with Linux kernel patches[3] for different
+hardware/firmware events on Qemu.
+
+This patch requires basic QEMU support series[2] to work. As the Qemu did not
+support mhpmevent/mhpmcounter before this series, these changes are not backward
+compatible to avoid code churn. Anybody who wants to use perf must include
+Qemu, OpenSBI, Linux kernel patches.
+
+[1] https://lists.riscv.org/g/tech-unixplatformspec/message/598
+[2] https://github.com/atishp04/qemu/tree/riscv_pmu_v1
+[3] https://github.com/atishp04/linux/tree/riscv_pmu_v2 
+[4] https://github.com/atishp04/opensbi/tree/riscv_pmu_v2 
+
+Changes from v1->v2:
+1. Addressed all the comments from v1.
+2. Improved the series by following latest SBI PMU extension[1]
+
+option-subject SBI PMU extension support
+option-prefix PATCH v2
