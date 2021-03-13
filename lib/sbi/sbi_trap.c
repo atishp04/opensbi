@@ -16,6 +16,7 @@
 #include <sbi/sbi_illegal_insn.h>
 #include <sbi/sbi_ipi.h>
 #include <sbi/sbi_misaligned_ldst.h>
+#include <sbi/sbi_pmu.h>
 #include <sbi/sbi_scratch.h>
 #include <sbi/sbi_timer.h>
 #include <sbi/sbi_trap.h>
@@ -230,6 +231,7 @@ void sbi_trap_handler(struct sbi_trap_regs *regs)
 			sbi_timer_process();
 			break;
 		case IRQ_M_SOFT:
+			sbi_pmu_incr_fw_ctr(SBI_PMU_FW_IPI_RECVD);
 			sbi_ipi_process();
 			break;
 		default:
@@ -241,14 +243,17 @@ void sbi_trap_handler(struct sbi_trap_regs *regs)
 
 	switch (mcause) {
 	case CAUSE_ILLEGAL_INSTRUCTION:
+		sbi_pmu_incr_fw_ctr(SBI_PMU_FW_ILLEGAL_INSN);
 		rc  = sbi_illegal_insn_handler(mtval, regs);
 		msg = "illegal instruction handler failed";
 		break;
 	case CAUSE_MISALIGNED_LOAD:
+		sbi_pmu_incr_fw_ctr(SBI_PMU_FW_MISALIGNED_LOAD);
 		rc = sbi_misaligned_load_handler(mtval, mtval2, mtinst, regs);
 		msg = "misaligned load handler failed";
 		break;
 	case CAUSE_MISALIGNED_STORE:
+		sbi_pmu_incr_fw_ctr(SBI_PMU_FW_MISALIGNED_STORE);
 		rc  = sbi_misaligned_store_handler(mtval, mtval2, mtinst, regs);
 		msg = "misaligned store handler failed";
 		break;
@@ -257,6 +262,10 @@ void sbi_trap_handler(struct sbi_trap_regs *regs)
 		rc  = sbi_ecall_handler(regs);
 		msg = "ecall handler failed";
 		break;
+	case CAUSE_LOAD_ACCESS:
+		sbi_pmu_incr_fw_ctr(SBI_PMU_FW_ACCESS_LOAD);
+	case CAUSE_STORE_ACCESS:
+		sbi_pmu_incr_fw_ctr(SBI_PMU_FW_ACCESS_STORE);
 	default:
 		/* If the trap came from S or U mode, redirect it there */
 		trap.epc = regs->mepc;

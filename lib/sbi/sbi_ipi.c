@@ -19,6 +19,9 @@
 #include <sbi/sbi_init.h>
 #include <sbi/sbi_ipi.h>
 #include <sbi/sbi_platform.h>
+#include <sbi/sbi_pmu.h>
+#include <sbi/sbi_string.h>
+#include <sbi/sbi_tlb.h>
 
 struct sbi_ipi_data {
 	unsigned long ipi_type;
@@ -61,6 +64,10 @@ static int sbi_ipi_send(struct sbi_scratch *scratch, u32 remote_hartid,
 	 */
 	atomic_raw_set_bit(event, &ipi_data->ipi_type);
 	smp_wmb();
+	sbi_pmu_incr_fw_ctr(SBI_PMU_FW_IPI_SENT);
+	if (sbi_strncmp(ipi_ops->name, "IPI_TLB", 7))
+		sbi_tlb_pmu_incr_fw_ctr(data);
+
 	sbi_platform_ipi_send(plat, remote_hartid);
 
 	if (ipi_ops->sync)
