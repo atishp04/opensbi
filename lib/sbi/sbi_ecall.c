@@ -11,6 +11,8 @@
 #include <sbi/sbi_ecall.h>
 #include <sbi/sbi_ecall_interface.h>
 #include <sbi/sbi_error.h>
+#include <sbi/sbi_hart.h>
+#include <sbi/sbi_scratch.h>
 #include <sbi/sbi_trap.h>
 
 u16 sbi_ecall_version_major(void)
@@ -162,6 +164,9 @@ int sbi_ecall_init(void)
 	if (ret)
 		return ret;
 	ret = sbi_ecall_register_extension(&ecall_srst);
+	if (ret)
+		return ret;
+	ret = sbi_ecall_register_extension(&ecall_pmu);
 	if (ret)
 		return ret;
 	ret = sbi_ecall_register_extension(&ecall_legacy);
