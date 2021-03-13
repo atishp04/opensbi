@@ -51,12 +51,26 @@ static void mstatus_init(struct sbi_scratch *scratch)
 
 	csr_write(CSR_MSTATUS, mstatus_val);
 
-	/* Enable user/supervisor use of perf counters */
+	/* Disable user mode usage of perf counters */
 	if (misa_extension('S') &&
 	    sbi_hart_has_feature(scratch, SBI_HART_HAS_SCOUNTEREN))
-		csr_write(CSR_SCOUNTEREN, -1);
-	if (sbi_hart_has_feature(scratch, SBI_HART_HAS_MCOUNTEREN))
-		csr_write(CSR_MCOUNTEREN, -1);
+		csr_write(CSR_SCOUNTEREN, 0);
+
+	if (sbi_hart_has_feature(scratch, SBI_HART_HAS_MCOUNTEREN)) {
+		if (sbi_hart_has_feature(scratch, SBI_HART_HAS_MCOUNTINHIBIT))
+			/**
+			 * Just enable TM bit now. All other counters will be
+			 * enabled at runtime after S-mode request
+			 */
+			csr_write(CSR_MCOUNTEREN, 2);
+		else
+			/* Supervisor mode usage are enabled by default */
+			csr_write(CSR_MCOUNTEREN, -1);
+	}
+
+	/* Counters will start running at runtime after S-mode request */
+	if (sbi_hart_has_feature(scratch, SBI_HART_HAS_MCOUNTINHIBIT))
+		csr_write(CSR_MCOUNTINHIBIT, -1);
 
 	/* Disable all interrupts */
 	csr_write(CSR_MIE, 0);
