@@ -33,6 +33,7 @@ struct sbi_tlb_info {
 	struct sbi_hartmask smask;
 };
 
+void sbi_tlb_pmu_incr_fw_ctr(struct sbi_tlb_info *data);
 void sbi_tlb_local_hfence_vvma(struct sbi_tlb_info *tinfo);
 void sbi_tlb_local_hfence_gvma(struct sbi_tlb_info *tinfo);
 void sbi_tlb_local_sfence_vma(struct sbi_tlb_info *tinfo);
