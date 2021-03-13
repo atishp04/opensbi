@@ -19,6 +19,7 @@
 #include <sbi/sbi_hsm.h>
 #include <sbi/sbi_ipi.h>
 #include <sbi/sbi_platform.h>
+#include <sbi/sbi_pmu.h>
 #include <sbi/sbi_system.h>
 #include <sbi/sbi_string.h>
 #include <sbi/sbi_timer.h>
@@ -251,6 +252,8 @@ static void __noreturn init_coldboot(struct sbi_scratch *scratch, u32 hartid)
 	if (rc)
 		sbi_hart_hang();
 
+	sbi_pmu_init(scratch, TRUE);
+
 	sbi_boot_print_banner(scratch);
 
 	rc = sbi_platform_irqchip_init(plat, TRUE);
@@ -352,6 +355,8 @@ static void init_warm_startup(struct sbi_scratch *scratch, u32 hartid)
 	if (rc)
 		sbi_hart_hang();
 
+	sbi_pmu_init(scratch, FALSE);
+
 	rc = sbi_platform_irqchip_init(plat, FALSE);
 	if (rc)
 		sbi_hart_hang();
@@ -391,6 +396,8 @@ static void init_warm_resume(struct sbi_scratch *scratch)
 	rc = sbi_hart_reinit(scratch);
 	if (rc)
 		sbi_hart_hang();
+
+	sbi_pmu_init(scratch, FALSE);
 
 	rc = sbi_hart_pmp_configure(scratch);
 	if (rc)
@@ -514,6 +521,8 @@ void __noreturn sbi_exit(struct sbi_scratch *scratch)
 		sbi_hart_hang();
 
 	sbi_platform_early_exit(plat);
+
+	sbi_pmu_exit(scratch);
 
 	sbi_timer_exit(scratch);
 
