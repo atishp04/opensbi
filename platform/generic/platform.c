@@ -16,6 +16,7 @@
 #include <sbi_utils/fdt/fdt_domain.h>
 #include <sbi_utils/fdt/fdt_fixup.h>
 #include <sbi_utils/fdt/fdt_helper.h>
+#include <sbi_utils/fdt/fdt_pmu.h>
 #include <sbi_utils/irqchip/fdt_irqchip.h>
 #include <sbi_utils/serial/fdt_serial.h>
 #include <sbi_utils/timer/fdt_timer.h>
@@ -204,6 +205,35 @@ static void generic_system_reset(u32 reset_type, u32 reset_reason)
 	fdt_system_reset(reset_type, reset_reason);
 }
 
+static int generic_pmu_init(void)
+{
+	return fdt_pmu_setup(sbi_scratch_thishart_arg1_ptr());
+}
+
+static uint64_t generic_pmu_get_mhpmevent_value(uint32_t event_idx,
+						uint64_t data)
+{
+	uint64_t result = 0;
+
+
+	/* data is valid only for raw events and is equal to event selector */
+	if (event_idx == SBI_PMU_EVENT_RAW_IDX)
+		result = data;
+	else
+		result = fdt_pmu_get_select_value(event_idx);
+
+	/**
+	 * Generic platform follows the SBI specification recommendation to
+	 * compute the mhpmevent value i.e.
+	 * xyz[0:19]    : event_idx
+	 * xyz[20:XLEN] : event_data[0:(XLEN-20)]
+	 */
+	result = result << SBI_PMU_EVENT_IDX_OFFSET |
+		(event_idx & SBI_PMU_EVENT_IDX_MASK);
+
+	return result;
+}
+
 const struct sbi_platform_operations platform_ops = {
 	.early_init		= generic_early_init,
 	.final_init		= generic_final_init,
@@ -219,6 +249,8 @@ const struct sbi_platform_operations platform_ops = {
 	.ipi_clear		= fdt_ipi_clear,
 	.ipi_init		= fdt_ipi_init,
 	.ipi_exit		= fdt_ipi_exit,
+	.pmu_init		= generic_pmu_init,
+	.get_mhpmevent_value    = generic_pmu_get_mhpmevent_value,
 	.get_tlbr_flush_limit	= generic_tlbr_flush_limit,
 	.timer_value		= fdt_timer_value,
 	.timer_event_stop	= fdt_timer_event_stop,
