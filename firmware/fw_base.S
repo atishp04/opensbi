@@ -47,6 +47,16 @@
 	.globl _start
 	.globl _start_warm
 _start:
+	csrr   t0, misa
+	slti   t1, t0, 0
+	slli   t1, t1, 1
+	slli   t0, t0, 1
+	slti   t0, t0, 0
+	add    t2, t0, t1
+	li     t3, __riscv_xlen
+	srli   t3, t3, 5
+	bne    t2, t3, _start_hang
+
 	/* Find preferred boot HART id */
 	MOV_3R	s0, a0, s1, a1, s2, a2
 	call	fw_boot_hart
